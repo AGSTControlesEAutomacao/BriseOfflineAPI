@@ -29,7 +29,7 @@ info:
 tags:
   - name: Usuário
     description: |
-      Para ter acesso ao equipamento, é necessário que ambos os dispositivos estejam conectados à mesma rede. Além disso, é importante garantir que a porta 443 (HTTPS) esteja desbloqueada.
+      Para ter acesso ao equipamento, é necessário que ambos os dispositivos estejam conectados à mesma rede. Além disso, é importante garantir que a porta 80 (HTTP) esteja desbloqueada.
   - name: Dispositivo
     description: |
       As informações de um dispositivo só serão acessiveis se a relação entre o usuário e o dispositivo existir e estiver com as credenciais do dispositivo corretas.
@@ -39,7 +39,7 @@ tags:
       <aside>Os agendamentos não tem como intensão a garantia da permanência do estado do dispositivo ou do AC durante um período, ou seja, podem haver alterações do contexto por usuários autorizados durante este período.
 
 servers:
-  - url: "https://192.168.50.100/api/v2"
+  - url: "http://192.168.50.100/api/v2"
     description: IP do equipamento
 
 components:
