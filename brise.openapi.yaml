@@ -1,7 +1,7 @@
 openapi: 3.0.2
 info:
-  title: Brise API
-  version: 2.0.0
+  title: Brise Offline API
+  version: 1.06.019
   contact:
     name: AGST
     url: https://forum.agst.com.br
@@ -12,22 +12,15 @@ info:
     A Brise API é RESTful e trabalha com payloads em formato `JSON`.
 
     Examples
-      * Obtenha as informações do usuário
+      * Obtenha as informações do dispositivo
         ```
           curl --location --request
-          GET 'https://brisev2.agst.com.br:8090/api/v2/user' \
-          --header 'Authorization: Bearer 2gbdx6oar67tqtcmt49t3wpcgycthx'
+          GET 'http://192.168.50.100/index.html' \
+          --header 'Authorization: Basic YWRtaW46YWRtaW4='
         ```
-      * Obtenha dispositivos do usuário
-        ```
-          curl --location --request
-          GET 'https://brisev2.agst.com.br:8090/api/v2/user-devices' \
-          --header 'Authorization: Bearer 2gbdx6oar67tqtcmt49t3wpcgycthx'
-        ```
-
     **Aletar:** Estamos em fase de testes.
 
-    Última atualização: 26/05/2021
+    Última atualização: 04/07/2023
   x-logo:
     url: ../logo_Brise1.svg
     href: https://www.agst.com.br/produtos/brise/
@@ -36,7 +29,7 @@ info:
 tags:
   - name: Usuário
     description: |
-      Para ter acesso aos dispositivos que estejam utilizando os serviços de Cloud é necessário uma conta no serviço e adicionar os dispositivos a conta de usuário com as devidas credencias de dispositivo.
+      Para ter acesso ao equipamento, é necessário que ambos os dispositivos estejam conectados à mesma rede. Além disso, é importante garantir que a porta 443 (HTTPS) esteja desbloqueada.
   - name: Dispositivo
     description: |
       As informações de um dispositivo só serão acessiveis se a relação entre o usuário e o dispositivo existir e estiver com as credenciais do dispositivo corretas.
@@ -46,8 +39,8 @@ tags:
       <aside>Os agendamentos não tem como intensão a garantia da permanência do estado do dispositivo ou do AC durante um período, ou seja, podem haver alterações do contexto por usuários autorizados durante este período.
 
 servers:
-  - url: "https://brisev2.agst.com.br:8090/api/v2"
-    description: Servidor de Produção
+  - url: "https://192.168.50.100/api/v2"
+    description: IP do equipamento
 
 components:
   schemas:
@@ -115,10 +108,22 @@ components:
     variables:
       type: object
       properties:
-        state:
-          type: boolean
-          description: Estatus do AC
-          example: true
+        WM:
+          type: integer
+          description: Tempo restante para deflagrar falta de presença
+          example: 65535
+        OFF:
+          type: integer
+          description: Integral do acelerômetro para definir se a máquina esta desligada
+          example: 123046
+        ON:
+          type: integer
+          description: Integral do acelerômetro para definir se a máquina esta ligada
+          example: 669723
+        ACC:
+          type: integer
+          description: Integral da leitura atual do acelerômetro
+          example: 124106
         temperature:
           type: number
           description: Temperatura do ambiente em [ºC]
@@ -135,6 +140,10 @@ components:
           type: integer
           description: Consumo estimado do mês vigente em [KWh] `Estimado pelo perfil do uso e capacidade do AC`
           example: 50
+        state:
+          type: boolean
+          description: Estatus do AC
+          example: true
     devices:
       type: object
       properties:
@@ -399,13 +408,19 @@ components:
 
   responses:
     Unauthorized:
-      description: Unauthorized. Seu token de acesso expirou ou foi revogado.
+      description: Unauthorized. Username ou Password incorreto.
     Forbidden:
       description: Forbidden. Não possue acesso ao dispositivo.
     NoContent:
       description: No Content. O dispositivo pode estar desligado no momento ou sua autenticação está incorreta.
     BadRequest:
       description: Bad Request. O formato da requisição não respeitou ao menos um dos critérios.
+    Not Found:
+      description: Not Found. Página não existe.
+    Internal Server Error:
+      description: Internal Server Error. Erro interno do servidor.
+    Accepted:
+      description: Accepted. Requisição aceita.
 
   parameters:
     scheduleId:
@@ -427,104 +442,31 @@ components:
         example: 100000
 
   securitySchemes:
-    api_key:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: Antes de executar chamadas ha API, é necessário um Token de Acesso.<br><br>Para obter um deve-se criar uma conta no serviço através do Brise App em seu smartphone previamente. Para gerar o Token de Acesso [clique aqui](https://brisev2.agst.com.br:8090/api/v2/reqwithlogin), faça seu login que será disponibilizado o Token de Acesso.<h3>Oauth 2.0 authorizationCode authentication</h3>
     briseAuth:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: "https://brisev2.agst.com.br:8090/api/v2/authorize"
-          tokenUrl: "https://brisev2.agst.com.br:8090/api/v2/exchange-code"
-
+      type: http
+      scheme: basic
+      description: As credenciais usadas na API Offline são o usuario e senha definidos individualmente para cada dispositivo durante a configuração via aplicativo.
 paths:
-  "/user/devices":
+  "/user/login":
     get:
-      summary: Obtém dispositivos
-      description: Obtém os dispositivos ao qual a conta do usuário tem acesso
+      summary: Página de login
+      description: Há uma página de login para averiguar se as credenciais de login estão corretas.
       tags:
         - Usuário
       responses:
         "200":
-          description: OK. Retorna os dispositivos que o usuário tem acesso com sucesso.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  devices:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/devices"
+          description: Ok. Retorna um text/html.
         "401":
           $ref: "#/components/responses/Unauthorized"
-    post:
-      summary: Adiciona dispositivo
-      description: Adiciona um dispositivo a conta do usuário
-      tags:
-        - Usuário
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              required:
-                - deviceId
-                - deviceUser
-                - devicePassword
-              properties:
-                deviceId:
-                  type: integer
-                  description: Número de série do dispositivo
-                  maximum: 999999
-                  example: 100000
-                deviceUser:
-                  type: string
-                  description: Usuário do dispositivo
-                  maxLength: 20
-                  example: admin
-                devicePassword:
-                  type: string
-                  description: Senha do dispositivo
-                  maxLength: 20
-                  example: "123456"
-      responses:
-        "201":
-          description: Created. Adiciounou o dispositivo ao usuário com sucesso.
-        "202":
-          description: Accepted. Não foi realizada a adição. O dispositivo já foi adicionado anteriormente ou não existe.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  "/user/devices/{deviceId}":
-    delete:
-      summary: Remove dispositivo
-      description: Remove dispositivo da conta do Usuário
-      tags:
-        - Usuário
-      parameters:
-        - $ref: "#/components/parameters/deviceId"
-      responses:
-        "200":
-          description: OK. Dispositivo removido com sucesso.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "406":
-          description: Not Acceptable. Este dispositivo não está relacionado ao usuário para removê-lo.
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
 
-  "/device/{deviceId}/configs":
+  "/device/configs":
     get:
       summary: Obtém configurações
-      description: Obtém as configurações de um dispositivo especifico
+      description: Obtém as configurações do dispositivo.
       tags:
         - Dispositivo
-      parameters:
-        - $ref: "#/components/parameters/deviceId"
       responses:
         "200":
           description: OK. Retorna as configurações do dispositivo com sucesso.
@@ -532,12 +474,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/config"
-        "204":
-          $ref: "#/components/responses/NoContent"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
     put:
       summary: Define configurações
       description: |
@@ -555,22 +495,18 @@ paths:
       responses:
         "202":
           description: Accepted. Configurações alteradas com sucesso.
-        "204":
-          $ref: "#/components/responses/NoContent"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-  "/device/{deviceId}/parameters":
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
+  "/device/parameters":
     get:
       summary: Obtém parametrizações
       description: Obtém as parametrizações de um dispositivo especifico
       tags:
         - Dispositivo
-      parameters:
-        - $ref: "#/components/parameters/deviceId"
       responses:
         "200":
           description: OK. Retorna as parametrizações do dispositivo com sucesso.
@@ -578,19 +514,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/parameter"
-        "204":
-          $ref: "#/components/responses/NoContent"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
     put:
       summary: Define parametrizações
       description: Altera as parametrizações do um dispositivo especifico
       tags:
         - Dispositivo
-      parameters:
-        - $ref: "#/components/parameters/deviceId"
       requestBody:
         required: true
         content:
@@ -600,22 +532,20 @@ paths:
       responses:
         "202":
           description: Accepted. Alterada as parametrizações com sucesso.
-        "204":
-          $ref: "#/components/responses/NoContent"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-  "/device/{deviceId}/variables":
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
+  "/device/variables":
     get:
       summary: Obtém variáveis
       description: Obtém as variáveis do dispositivo
       tags:
         - Dispositivo
-      parameters:
-        - $ref: "#/components/parameters/deviceId"
       responses:
         "200":
           description: OK. Retorna as variaveis do sistema com sucesso.
@@ -623,21 +553,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/variables"
-        "204":
-          $ref: "#/components/responses/NoContent"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
 
-  "/device/{deviceId}/schedules":
+  "/device/schedules":
     get:
       summary: Obtém agendamentos
       description: Obtém todos os agendamentos do dispositivo
       tags:
         - Agenda
-      parameters:
-        - $ref: "#/components/parameters/deviceId"
       responses:
         "200":
           description: OK. Retorna os agendamentos do dispositivo com sucesso.
@@ -662,20 +588,16 @@ paths:
                           properties:
                             parameter:
                               $ref: "#/components/schemas/parameter"
-        "204":
-          $ref: "#/components/responses/NoContent"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
     post:
       summary: Adiciona agendamento
       description: |
         Adiciona novo agendamento ao dispositivo.<aside>`Ao criar um novo agendamento sugerimos o uso do relógio do sistema para evitar a tentativa de criar mais de um agendamento com o mesmo scheduleId, o que não é permitido.`</aside>
       tags:
         - Agenda
-      parameters:
-        - $ref: "#/components/parameters/deviceId"
       requestBody:
         required: true
         content:
@@ -699,15 +621,14 @@ paths:
       responses:
         "202":
           description: Accepted. Novo agendamento ao dispositivo adicionado com sucesso.
-        "204":
-          $ref: "#/components/responses/NoContent"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-  "/device/{deviceId}/schedules/{scheduleId}":
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
+
+  "/device/schedules/{scheduleId}":
     put:
       summary: Altera agendamento
       description: Altera agendamento
@@ -728,16 +649,15 @@ paths:
 
       parameters:
         - $ref: "#/components/parameters/scheduleId"
-        - $ref: "#/components/parameters/deviceId"
       responses:
         "202":
           description: Accepted. O pedido de alteração do agendamento foi enviado com sucesso.
-        "204":
-          $ref: "#/components/responses/NoContent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
     delete:
       summary: Remove agendamento
       description: Remove agendamento
@@ -745,16 +665,12 @@ paths:
         - Agenda
       parameters:
         - $ref: "#/components/parameters/scheduleId"
-        - $ref: "#/components/parameters/deviceId"
       responses:
         "202":
           description: Accepted. O pedido para remoção do agendamento foi enviado com sucesso.
-        "204":
-          $ref: "#/components/responses/NoContent"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-
+        "500":
+          $ref: "#/components/responses/Internal Server Error"
 security:
   - briseAuth: []
