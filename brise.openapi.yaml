@@ -467,8 +467,6 @@ paths:
         Altera as configurações do dispositivo especifico<aside>`Nota: Os grupos devem respeitar sua ordem hierárquica, ou seja, primeiro o equipamento tem que pertencer a um grupo no leve 1 antes de pertencer a outro no level 2.`</aside>
       tags:
         - Dispositivo
-      parameters:
-        - $ref: "#/components/parameters/deviceId"
       requestBody:
         required: true
         content:
